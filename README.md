@@ -1,67 +1,129 @@
+# micrograd à la C macros
 
-# micrograd
+  `ValueStructDef(Type)` defines Value struct in type `TYPE` (aka `Value(TYPE)`)
+  Usage:
+  `ValueStructDef(Type)`
 
-![awww](puppy.jpg)
+  - `Type`: float or double or any one word number type.
 
-A tiny Autograd engine (with a bite! :)). Implements backpropagation (reverse-mode autodiff) over a dynamically built DAG and a small neural networks library on top of it with a PyTorch-like API. Both are tiny, with about 100 and 50 lines of code respectively. The DAG only operates over scalar values, so e.g. we chop up each neuron into all of its individual tiny adds and multiplies. However, this is enough to build up entire deep neural nets doing binary classification, as the demo notebook shows. Potentially useful for educational purposes.
+  `instantiateValue(Type)` for instantiation of `Value(TYPE)`
+  Usage:
+  `Value(TYPE) *x = instantiateValue(float)(value, childs, nchild, backward);`
 
-### Installation
+  - `x`:      Pointer to `Value(TYPE)`
+  - `value`:  A value in TYPE
+  - `childs`: Pointer to an array of pointer(s) to `Value(TYPE)`
+  - `nchild`: Number of elements in childs
+  - `backward`: A function used to make backward gradient propagation.
+  - `x.data` stores value.
+  - `x.grad` is initialized with 0.
+  - `x.parentreference` is internally set to 0 for correctly ordered backpropagation.
 
-```bash
-pip install micrograd
-```
+
+  `addValue(Type)` for addition function of `Value(TYPE)`
+  Usage:
+  `Value(TYPE) *res = addValue(float)(childs, nchild);`
+
+  - `res`:    Pointer to `Value(Type)`
+  - `childs`: Pointer to an array of pointer(s) to `Value(TYPE)`
+  - `nchild`: Number of elements in childs
+  - `res.data` stores the addition of the data fields in all the elements in childs.
+  - `res.grad` is initialized with 0.
+  - `res.backward` is internally assigned from this function.
+  - `res.parentreference` is internally set to 0 for correctly ordered backpropagation.
+  - All the elements in childs have their `parentreference` field incremented.
+
+  `mulValue(Type)` for multiplication function of `Value(TYPE)`
+  Usage:
+  `Value(TYPE) *res = mulValue(float)(childs, nchild);`
+
+  - `res`:    Pointer to `Value(TYPE)`
+  - `childs`: Pointer to an array of pointer(s) to `Value(TYPE)`
+  - `nchild`: Number of elements in childs array
+  - `res.data` stores the product of the data fields in all the elements in childs.
+  - `res.grad` is initialized with 0.
+  - `res.backward` is internally assigned from this function.
+  - `res.parentreference` is internally set to 0 for correctly ordered backpropagation.
+  - All the elements in childs have their parentreference field incremented.
+
+  backward() for backpropagation of gradient
+  Usage:
+  ```C
+  v->grad = (TYPE)1; //First initialize output gradient to 1.
+  v->backward();
+  ```
+  `v`: Pointer to `Value(Type)`
 
 ### Example usage
 
-Below is a slightly contrived example showing a number of possible supported operations:
+```C
+#include "engine.h"
+#include <stdio.h>
 
-```python
-from micrograd.engine import Value
+int main(){
+  Value(float) *x = instantiateValue(float)(5.0f, NULL, 0, NULL); // Leaf value not backwarding gradients
+  Value(float) *t = instantiateValue(float)(0.0f, NULL, 0, NULL); // Leaf value not backwarding gradients
+  Value(float) *xs[2] = {x, x};
+  Value(float) *y = addValue(float)(xs, 2); // x+x
+  Value(float) *z = mulValue(float)(xs, 2); // x*x
+  Value(float) *x2y[3] = {x, y, x};
+  Value(float) *x2z[3] = {x, z, x};
+  Value(float) *xyz[3] = {x, y, z};
+  Value(float) *xyt[3] = {x, y, t};
+  // (x * y * x) * (x * z * x) * (x + y + z) * (x * y * t)=(2x³)(x⁴)(3x+x²)(2x²t)
+  Value(float) *ochilds[4] = {mulValue(float)(x2y, 3), mulValue(float)(x2z, 3), addValue(float)(xyz, 3), mulValue(float)(xyt, 3)};
+  Value(float) *o = mulValue(float)(ochilds, 4);
 
-a = Value(-4.0)
-b = Value(2.0)
-c = a + b
-d = a * b + b**3
-c += c + 1
-c += 1 + c + (-a)
-d += d * 2 + (b + a).relu()
-d += 3 * d + (b - a).relu()
-e = c - d
-f = e**2
-g = f / 2.0
-g += 10.0 / f
-print(f'{g.data:.4f}') # prints 24.7041, the outcome of this forward pass
-g.backward()
-print(f'{a.grad:.4f}') # prints 138.8338, i.e. the numerical value of dg/da
-print(f'{b.grad:.4f}') # prints 645.5773, i.e. the numerical value of dg/db
+  puts("How many parents references each Value?");
+  printf("o.parentreference=%d\n", o->parentreference);
+  printf("o.childs[0].parentreference=%d\n", o->childs[0]->parentreference);
+  printf("o.childs[1].parentreference=%d\n", o->childs[1]->parentreference);
+  printf("o.childs[2].parentreference=%d\n", o->childs[2]->parentreference);
+  printf("o.childs[3].parentreference=%d\n", o->childs[2]->parentreference);
+  printf("z.parentreference=%d\n", z->parentreference);
+  printf("y.parentreference=%d\n", y->parentreference);
+  printf("t.parentreference=%d\n", t->parentreference);
+  printf("x.parentreference=%d\n", x->parentreference);
+
+  puts("");
+  puts("Set output gradient to 1");
+  o->grad = 1;
+  puts("Backpropagate gradients from output");
+  o->backward(o);
+
+  puts("");
+  puts("See the resutls in each Value");
+  printf("o.data=%lf o.grad=%lf\n", o->data, o->grad);
+  printf("o.childs[0].data=%lf o.childs[0].grad=%lf\n", o->childs[0]->data, o->childs[0]->grad);
+  printf("o.childs[1].data=%lf o.childs[1].grad=%lf\n", o->childs[1]->data, o->childs[1]->grad);
+  printf("o.childs[2].data=%lf o.childs[2].grad=%lf\n", o->childs[2]->data, o->childs[2]->grad);
+  printf("o.childs[3].data=%lf o.childs[3].grad=%lf\n", o->childs[3]->data, o->childs[3]->grad);
+  printf("z.data=%lf z.grad=%lf\n", z->data, z->grad);
+  printf("y.data=%lf y.grad=%lf\n", y->data, y->grad);
+  printf("t.data=%lf t.grad=%lf\n", t->data, t->grad);
+  printf("x.data=%lf x.grad=%lf\n", x->data, x->grad);
+
+  puts("");
+  puts("Check if parents releases references in backpropagation!");
+  printf("o.parentreference=%d\n", o->parentreference);
+  printf("o.childs[0].parentreference=%d\n", o->childs[0]->parentreference);
+  printf("o.childs[1].parentreference=%d\n", o->childs[1]->parentreference);
+  printf("o.childs[2].parentreference=%d\n", o->childs[2]->parentreference);
+  printf("o.childs[3].parentreference=%d\n", o->childs[2]->parentreference);
+  printf("z.parentreference=%d\n", z->parentreference);
+  printf("y.parentreference=%d\n", y->parentreference);
+  printf("t.parentreference=%d\n", t->parentreference);
+  printf("x.parentreference=%d\n", x->parentreference); 
+
+  return 0;
+}
 ```
-
-### Training a neural net
-
-The notebook `demo.ipynb` provides a full demo of training an 2-layer neural network (MLP) binary classifier. This is achieved by initializing a neural net from `micrograd.nn` module, implementing a simple svm "max-margin" binary classification loss and using SGD for optimization. As shown in the notebook, using a 2-layer neural net with two 16-node hidden layers we achieve the following decision boundary on the moon dataset:
-
-![2d neuron](moon_mlp.png)
-
-### Tracing / visualization
-
-For added convenience, the notebook `trace_graph.ipynb` produces graphviz visualizations. E.g. this one below is of a simple 2D neuron, arrived at by calling `draw_dot` on the code below, and it shows both the data (left number in each node) and the gradient (right number in each node).
-
-```python
-from micrograd import nn
-n = nn.Neuron(2)
-x = [Value(1.0), Value(-2.0)]
-y = n(x)
-dot = draw_dot(y)
-```
-
-![2d neuron](gout.svg)
 
 ### Running tests
 
-To run the unit tests you will have to install [PyTorch](https://pytorch.org/), which the tests use as a reference for verifying the correctness of the calculated gradients. Then simply:
-
 ```bash
-python -m pytest
+cd engine
+make run 
 ```
 
 ### License
