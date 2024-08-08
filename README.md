@@ -125,6 +125,45 @@ int main(){
 cd engine
 make run 
 ```
+Output
+
+```bash
+How many parents references each Value?
+o.parentreference=0
+o.childs[0].parentreference=1
+o.childs[1].parentreference=1
+o.childs[2].parentreference=1
+o.childs[3].parentreference=1
+z.parentreference=2
+y.parentreference=3
+t.parentreference=1
+x.parentreference=10
+
+Set output gradient to 1
+Backpropagate gradients from output
+
+See the resutls in each Value
+o.data=0.000000 o.grad=1.000000
+o.childs[0].data=250.000000 o.childs[0].grad=0.000000
+o.childs[1].data=625.000000 o.childs[1].grad=0.000000
+o.childs[2].data=40.000000 o.childs[2].grad=0.000000
+o.childs[3].data=0.000000 o.childs[3].grad=6250000.000000
+z.data=25.000000 z.grad=0.000000
+y.data=10.000000 y.grad=0.000000
+t.data=0.000000 t.grad=312500000.000000
+x.data=5.000000 x.grad=0.000000
+
+Check if parents releases references in backpropagation!
+o.parentreference=0
+o.childs[0].parentreference=0
+o.childs[1].parentreference=0
+o.childs[2].parentreference=0
+o.childs[3].parentreference=0
+z.parentreference=0
+y.parentreference=0
+t.parentreference=0
+x.parentreference=0
+```
 
 ### License
 
