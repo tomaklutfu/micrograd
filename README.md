@@ -1,12 +1,12 @@
 # micrograd à la C macros
 
-  `ValueStructDef(Type)` defines Value struct in type `TYPE` (aka `Value(TYPE)`)
+  `ValueStructDef(Type)` defines Value struct in type `TYPE` (aka `Value(TYPE)`)  
   Usage:
   `ValueStructDef(Type)`
 
   - `Type`: float or double or any one word number type.
 
-  `instantiateValue(Type)` for instantiation of `Value(TYPE)`
+  `instantiateValue(Type)` for instantiation of `Value(TYPE)`  
   Usage:
   `Value(TYPE) *x = instantiateValue(float)(value, childs, nchild, backward);`
 
@@ -20,7 +20,7 @@
   - `x.parentreference` is internally set to 0 for correctly ordered backpropagation.
 
 
-  `addValue(Type)` for addition function of `Value(TYPE)`
+  `addValue(Type)` for addition function of `Value(TYPE)`  
   Usage:
   `Value(TYPE) *res = addValue(float)(childs, nchild);`
 
@@ -33,7 +33,7 @@
   - `res.parentreference` is internally set to 0 for correctly ordered backpropagation.
   - All the elements in childs have their `parentreference` field incremented.
 
-  `mulValue(Type)` for multiplication function of `Value(TYPE)`
+  `mulValue(Type)` for multiplication function of `Value(TYPE)`  
   Usage:
   `Value(TYPE) *res = mulValue(float)(childs, nchild);`
 
@@ -46,7 +46,7 @@
   - `res.parentreference` is internally set to 0 for correctly ordered backpropagation.
   - All the elements in childs have their parentreference field incremented.
 
-  backward() for backpropagation of gradient
+  backward() for backpropagation of gradient  
   Usage:
   ```C
   v->grad = (TYPE)1; //First initialize output gradient to 1.
